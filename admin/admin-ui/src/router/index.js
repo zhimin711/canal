@@ -65,6 +65,11 @@ export const constantRoutes = [
       name: '用户信息',
       component: () => import('@/views/sys/UserInfo'),
       meta: { title: '用户信息' }
+    }, {
+      path: 'tools',
+      name: '工具箱',
+      component: () => import('@/views/sys/UserTools'),
+      meta: { title: '工具箱' }
     }],
     hidden: true
   },
