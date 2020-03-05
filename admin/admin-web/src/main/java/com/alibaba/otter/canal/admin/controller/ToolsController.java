@@ -5,7 +5,9 @@ import com.alibaba.otter.canal.admin.model.User;
 import com.alibaba.otter.canal.admin.service.UserService;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
+import com.ulisesbocchio.jasyptspringboot.encryptor.DefaultLazyEncryptor;
 import org.apache.commons.lang.StringUtils;
+import org.jasypt.encryption.StringEncryptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.web.bind.annotation.*;
@@ -46,9 +48,9 @@ public class ToolsController {
         }
 
         System.setProperty("jasypt.encryptor.password", user.getOldPassword());
-//        StringEncryptor stringEncryptor = new DefaultLazyEncryptor(new StandardEnvironment());
-//        String pwd = stringEncryptor.encrypt(user.getPassword());
-        return BaseModel.getInstance("123");
+        StringEncryptor stringEncryptor = new DefaultLazyEncryptor(new StandardEnvironment());
+        String pwd = stringEncryptor.encrypt(user.getPassword());
+        return BaseModel.getInstance(pwd);
     }
 
 }
