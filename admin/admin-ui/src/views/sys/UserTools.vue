@@ -22,7 +22,7 @@ export default {
   data() {
     return {
       form: {
-        oldPassword: '',
+        oldPassword: 'abc123',
         password: null
       },
       rules: {
