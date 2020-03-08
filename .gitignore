@@ -19,7 +19,7 @@ jtester.properties
 client-adapter/example/
 *.dat
 conf/
-canal-admin/canal-admin-ui/dist/
-canal-admin/canal-admin-ui/node/
-canal-admin/canal-admin-ui/node_modules/
+admin/admin-ui/dist/
+admin/admin-ui/node/
+admin/admin-ui/node_modules/
 canal-admin/canal-admin-server/src/main/resources/conf/

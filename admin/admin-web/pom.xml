@@ -12,7 +12,6 @@
         <dependency>
             <groupId>com.github.ulisesbocchio</groupId>
             <artifactId>jasypt-spring-boot-starter</artifactId>
-            <version>2.1.1</version>
         </dependency>
     	<dependency>
 			<groupId>com.alibaba.otter</groupId>
@@ -58,6 +57,7 @@
 			<artifactId>junit</artifactId>
 			<scope>test</scope>
 		</dependency>
+
     </dependencies>
 
     <build>
@@ -123,7 +123,7 @@
             <activation>
                 <property>
                     <name>env</name>
-                    <value>npm</value>
+                    <value>dev</value>
                 </property>
             </activation>
             <build>
