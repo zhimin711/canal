@@ -31,10 +31,10 @@ public class RedisMetaManager extends AbstractCanalLifeCycle implements CanalMet
 
     private static final Logger logger = LoggerFactory.getLogger(RedisMetaManager.class);
 
-    private static final String KEY_SEPARATOR = "_";
+    protected static final String KEY_SEPARATOR = "_";
 
-    private static final String KEY_SEPARATOR1 = ":";
-    private static final String KEY_SEPARATOR2 = ",";
+    protected static final String KEY_SEPARATOR1 = ":";
+    protected static final String KEY_SEPARATOR2 = ",";
 
     private static final String KEY_ROOT = "otter_canal_meta";
 
@@ -59,11 +59,11 @@ public class RedisMetaManager extends AbstractCanalLifeCycle implements CanalMet
 
     private Integer redisPort;
 
-    protected Integer redisDatabase;
+    protected Integer redisDatabase = 0;
 
-    protected Integer redisTimeout;
+    protected Integer redisTimeout = 2000;
 
-    protected Integer redisMetaExpire;
+    protected Integer redisMetaExpire = 0;
 
     protected String redisPassword;
 
@@ -97,7 +97,9 @@ public class RedisMetaManager extends AbstractCanalLifeCycle implements CanalMet
     @Override
     public void stop() {
         super.stop();
-        jedisPool.close();
+        if (jedisPool != null) {
+            jedisPool.close();
+        }
     }
 
     @Override

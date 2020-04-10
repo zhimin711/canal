@@ -2,6 +2,8 @@ package com.alibaba.otter.canal.meta;
 
 import com.google.common.collect.Sets;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.JedisCluster;
 import redis.clients.jedis.JedisCommands;
@@ -18,7 +20,7 @@ import java.util.function.Function;
  */
 public class RedisClusterMetaManager extends RedisMetaManager {
 
-    private static final String KEY_SEPARATOR2 = ";";
+    private static final Logger logger = LoggerFactory.getLogger(RedisClusterMetaManager.class);
 
     private JedisCluster jedisCluster;
 
@@ -49,7 +51,7 @@ public class RedisClusterMetaManager extends RedisMetaManager {
         String[] nodeArr = redisClusterNodes.split(KEY_SEPARATOR2);
         Set<HostAndPort> hostAndPorts = Sets.newHashSet();
         for (String node : nodeArr) {
-            String[] hpArr = node.split(":");
+            String[] hpArr = node.split(KEY_SEPARATOR1);
             if (hpArr.length == 2) {
                 hostAndPorts.add(new HostAndPort(hpArr[0], Integer.parseInt(hpArr[1])));
             }
@@ -63,7 +65,7 @@ public class RedisClusterMetaManager extends RedisMetaManager {
         try {
             jedisCluster.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error("RedisClusterMetaManager stop error!", e);
         }
     }
 
