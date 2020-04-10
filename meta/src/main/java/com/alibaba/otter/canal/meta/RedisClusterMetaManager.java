@@ -1,21 +1,13 @@
 package com.alibaba.otter.canal.meta;
 
-import com.alibaba.fastjson.serializer.SerializerFeature;
-import com.alibaba.otter.canal.common.AbstractCanalLifeCycle;
-import com.alibaba.otter.canal.common.utils.JsonUtils;
-import com.alibaba.otter.canal.meta.exception.CanalMetaManagerException;
-import com.alibaba.otter.canal.protocol.ClientIdentity;
-import com.alibaba.otter.canal.protocol.position.Position;
-import com.alibaba.otter.canal.protocol.position.PositionRange;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import org.apache.commons.lang.StringUtils;
-import redis.clients.jedis.*;
-import redis.clients.util.Pool;
+import redis.clients.jedis.HostAndPort;
+import redis.clients.jedis.JedisCluster;
+import redis.clients.jedis.JedisCommands;
 
 import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
@@ -30,21 +22,26 @@ public class RedisClusterMetaManager extends RedisMetaManager {
 
     private JedisCluster jedisCluster;
 
+    /**
+     * 集群节点
+     */
     private String redisClusterNodes;
+    /**
+     * 返回值的超时时间
+     */
     private Integer soTimeout;
+    /**
+     * 出现异常最大重试次数
+     */
     private Integer maxAttempts;
 
     @Override
     public void start() {
         super.start();
         Set<HostAndPort> nodes = parseHostAndPortNodes(redisClusterNodes);
-
-        if (StringUtils.isBlank(redisPassword)) {
-            jedisCluster = new JedisCluster(nodes, redisTimeout, jedisPoolConfig);
-        } else {
-            jedisCluster = new JedisCluster(nodes, redisTimeout, soTimeout, maxAttempts, redisPassword, jedisPoolConfig);
-
-        }
+        jedisCluster = StringUtils.isBlank(redisPassword) ?
+                new JedisCluster(nodes, redisTimeout, soTimeout, maxAttempts, jedisPoolConfig) :
+                new JedisCluster(nodes, redisTimeout, soTimeout, maxAttempts, redisPassword, jedisPoolConfig);
 
     }
 
@@ -71,8 +68,8 @@ public class RedisClusterMetaManager extends RedisMetaManager {
     }
 
     @Override
-    protected  <V> V invokeRedis(Function<JedisCommands, V> function) {
-        try  {
+    protected <V> V invokeRedis(Function<JedisCommands, V> function) {
+        try {
             return function.apply(jedisCluster);
         } catch (Throwable t) {
             return null;

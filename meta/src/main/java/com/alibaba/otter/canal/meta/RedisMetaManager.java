@@ -12,6 +12,8 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import javafx.scene.input.DataFormat;
 import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import redis.clients.jedis.*;
 import redis.clients.util.Pool;
 
@@ -27,11 +29,12 @@ import java.util.function.Function;
  */
 public class RedisMetaManager extends AbstractCanalLifeCycle implements CanalMetaManager {
 
+    private static final Logger logger = LoggerFactory.getLogger(RedisMetaManager.class);
 
     private static final String KEY_SEPARATOR = "_";
 
     private static final String KEY_SEPARATOR1 = ":";
-    private static final String KEY_SEPARATOR2 = ";";
+    private static final String KEY_SEPARATOR2 = ",";
 
     private static final String KEY_ROOT = "otter_canal_meta";
 
@@ -72,11 +75,15 @@ public class RedisMetaManager extends AbstractCanalLifeCycle implements CanalMet
     public void start() {
         super.start();
         if (StringUtils.isNotBlank(redisHost)) {
-            jedisPool = StringUtils.isBlank(redisPassword) ? new JedisPool(jedisPoolConfig, redisHost, redisPort, redisTimeout) : new JedisPool(jedisPoolConfig, redisHost, redisPort, redisTimeout, redisPassword);
+            jedisPool = StringUtils.isBlank(redisPassword) ?
+                    new JedisPool(jedisPoolConfig, redisHost, redisPort, redisTimeout) :
+                    new JedisPool(jedisPoolConfig, redisHost, redisPort, redisTimeout, redisPassword);
 
         } else if (StringUtils.isNotBlank(redisSentinelNodes)) {
             Set<String> sentinels = parseNodes(redisSentinelNodes);
-            jedisPool = StringUtils.isBlank(redisPassword) ? new JedisSentinelPool(redisSentinelMaster, sentinels, jedisPoolConfig) : new JedisSentinelPool(redisSentinelMaster, sentinels, jedisPoolConfig, redisPassword);
+            jedisPool = StringUtils.isBlank(redisPassword) ?
+                    new JedisSentinelPool(redisSentinelMaster, sentinels, jedisPoolConfig) :
+                    new JedisSentinelPool(redisSentinelMaster, sentinels, jedisPoolConfig, redisPassword);
         }
 
     }
@@ -242,11 +249,12 @@ public class RedisMetaManager extends AbstractCanalLifeCycle implements CanalMet
         return stringBuilder.toString();
     }
 
-    protected  <V> V invokeRedis(Function<JedisCommands, V> function) {
+    protected <V> V invokeRedis(Function<JedisCommands, V> function) {
         try (Jedis jedis = (Jedis) jedisPool.getResource()) {
             jedis.select(redisDatabase);
             return function.apply(jedis);
         } catch (Throwable t) {
+            logger.error("invokeRedis error!", t);
             return null;
         }
     }
