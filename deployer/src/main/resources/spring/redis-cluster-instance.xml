@@ -116,7 +116,16 @@
 
 		<!-- 解析位点记录 -->
 		<property name="logPositionManager">
-			<bean class="com.alibaba.otter.canal.parse.index.MemoryLogPositionManager" />
+			<bean class="com.alibaba.otter.canal.parse.index.FailbackLogPositionManager">
+				<constructor-arg>
+					<bean class="com.alibaba.otter.canal.parse.index.MemoryLogPositionManager" />
+				</constructor-arg>
+				<constructor-arg>
+					<bean class="com.alibaba.otter.canal.parse.index.MetaLogPositionManager">
+						<constructor-arg ref="metaManager"/>
+					</bean>
+				</constructor-arg>
+			</bean>
 		</property>
 
 		<!-- failover切换时回退的时间 -->
