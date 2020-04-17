@@ -291,16 +291,21 @@ public class RedisMetaManager extends AbstractCanalLifeCycle implements CanalMet
     }
 
     protected <V> V invokeRedis(Function<JedisCommands, V> function) {
+        Jedis jedis = null;
         try {
             if (isCluster) {
                 return function.apply(jedisCluster);
             }
-            Jedis jedis = jedisPool.getResource();
+            jedis = jedisPool.getResource();
             jedis.select(redisDatabase);
             return function.apply(jedis);
         } catch (Throwable t) {
             logger.error("invokeRedis error!", t);
             return null;
+        } finally {
+            if (jedis != null) {
+                jedis.close();
+            }
         }
     }
 
