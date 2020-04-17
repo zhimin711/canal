@@ -24,7 +24,7 @@ public class RedisMetaManagerTest extends AbstractMetaManagerTest {
 
     @Test
     public void testBatchAll() {
-        RedisClusterMetaManager metaManager = new RedisClusterMetaManager();
+        RedisMetaManager metaManager = new RedisMetaManager();
         metaManager.start();
         doBatchTest(metaManager);
 
@@ -36,7 +36,7 @@ public class RedisMetaManagerTest extends AbstractMetaManagerTest {
 
     @Test
     public void testCursorAll() {
-        RedisClusterMetaManager metaManager = new RedisClusterMetaManager();
+        RedisMetaManager metaManager = new RedisMetaManager();
         metaManager.start();
         doCursorTest(metaManager);
         metaManager.stop();

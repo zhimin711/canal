@@ -55,6 +55,9 @@
 		<property name="redisMetaExpire" value="${redis.meta.expire:86400}" />
 		<property name="redisSentinelMaster" value="${redis.sentinel.master}" />
 		<property name="redisSentinelNodes" value="${redis.sentinel.nodes}" />
+		<property name="redisClusterNodes" value="${redis.cluster.nodes}" />
+		<property name="soTimeout" value="${redis.cluster.soTimeout:2000}" />
+		<property name="maxAttempts" value="${redis.cluster.maxAttempts:5}" />
 	</bean>
 
 	<bean id="eventStore" class="com.alibaba.otter.canal.store.memory.MemoryEventStoreWithBuffer">

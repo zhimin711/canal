@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import redis.clients.jedis.*;
 import redis.clients.util.Pool;
 
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.function.Function;
@@ -49,8 +50,6 @@ public class RedisMetaManager extends AbstractCanalLifeCycle implements CanalMet
 
     private static SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyyMMdd", Locale.CHINA);
 
-    private Pool<?> jedisPool;
-
     protected JedisPoolConfig jedisPoolConfig;
 
     private String redisHost;
@@ -69,6 +68,24 @@ public class RedisMetaManager extends AbstractCanalLifeCycle implements CanalMet
 
     private String redisSentinelNodes;
 
+    /**
+     * 集群节点
+     */
+    private String redisClusterNodes;
+    /**
+     * 返回值的超时时间
+     */
+    private Integer soTimeout;
+    /**
+     * 出现异常最大重试次数
+     */
+    private Integer maxAttempts;
+
+    private Pool<Jedis> jedisPool;
+    private JedisCluster jedisCluster;
+
+    private boolean isCluster = false;
+
     @Override
     public void start() {
         super.start();
@@ -82,6 +99,12 @@ public class RedisMetaManager extends AbstractCanalLifeCycle implements CanalMet
             jedisPool = StringUtils.isBlank(redisPassword) ?
                     new JedisSentinelPool(redisSentinelMaster, sentinels, jedisPoolConfig) :
                     new JedisSentinelPool(redisSentinelMaster, sentinels, jedisPoolConfig, redisPassword);
+        } else if (StringUtils.isNotBlank(redisClusterNodes)) {
+            Set<HostAndPort> nodes = parseHostAndPortNodes(redisClusterNodes);
+            jedisCluster = StringUtils.isBlank(redisPassword) ?
+                    new JedisCluster(nodes, redisTimeout, soTimeout, maxAttempts, jedisPoolConfig) :
+                    new JedisCluster(nodes, redisTimeout, soTimeout, maxAttempts, redisPassword, jedisPoolConfig);
+            isCluster = true;
         }
 
     }
@@ -91,12 +114,30 @@ public class RedisMetaManager extends AbstractCanalLifeCycle implements CanalMet
         return Sets.newHashSet(nodeArr);
     }
 
+    private Set<HostAndPort> parseHostAndPortNodes(String redisClusterNodes) {
+        String[] nodeArr = redisClusterNodes.split(KEY_SEPARATOR2);
+        Set<HostAndPort> hostAndPorts = Sets.newHashSet();
+        for (String node : nodeArr) {
+            String[] hpArr = node.split(KEY_SEPARATOR1);
+            if (hpArr.length == 2) {
+                hostAndPorts.add(new HostAndPort(hpArr[0], Integer.parseInt(hpArr[1])));
+            }
+        }
+        return hostAndPorts;
+    }
 
     @Override
     public void stop() {
         super.stop();
         if (jedisPool != null) {
             jedisPool.close();
+        }
+        if (jedisCluster != null) {
+            try {
+                jedisCluster.close();
+            } catch (IOException e) {
+                logger.error("## redis cluster close error!", e);
+            }
         }
     }
 
@@ -250,7 +291,11 @@ public class RedisMetaManager extends AbstractCanalLifeCycle implements CanalMet
     }
 
     protected <V> V invokeRedis(Function<JedisCommands, V> function) {
-        try (Jedis jedis = (Jedis) jedisPool.getResource()) {
+        try {
+            if (isCluster) {
+                return function.apply(jedisCluster);
+            }
+            Jedis jedis = jedisPool.getResource();
             jedis.select(redisDatabase);
             return function.apply(jedis);
         } catch (Throwable t) {
@@ -295,4 +340,15 @@ public class RedisMetaManager extends AbstractCanalLifeCycle implements CanalMet
         this.redisMetaExpire = redisMetaExpire;
     }
 
+    public void setRedisClusterNodes(String redisClusterNodes) {
+        this.redisClusterNodes = redisClusterNodes;
+    }
+
+    public void setSoTimeout(Integer soTimeout) {
+        this.soTimeout = soTimeout;
+    }
+
+    public void setMaxAttempts(Integer maxAttempts) {
+        this.maxAttempts = maxAttempts;
+    }
 }
