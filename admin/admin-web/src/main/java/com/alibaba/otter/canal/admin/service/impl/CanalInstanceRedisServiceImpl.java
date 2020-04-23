@@ -10,7 +10,10 @@ import com.alibaba.otter.canal.protocol.position.LogPosition;
 import com.google.common.collect.Maps;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.connection.*;
+import org.springframework.data.redis.connection.RedisClusterConfiguration;
+import org.springframework.data.redis.connection.RedisPassword;
+import org.springframework.data.redis.connection.RedisSentinelConfiguration;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.jedis.JedisClientConfiguration;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -21,10 +24,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 
 @Service
 public class CanalInstanceRedisServiceImpl implements CanalInstanceRedisService {
@@ -85,6 +85,7 @@ public class CanalInstanceRedisServiceImpl implements CanalInstanceRedisService 
         if (factory == null) {
             return redisTemplateMap.get(properties.getProperty("redis.template.key"));
         }
+        factory.afterPropertiesSet();
 
         RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
         redisTemplate.setKeySerializer(new StringRedisSerializer());
@@ -107,8 +108,8 @@ public class CanalInstanceRedisServiceImpl implements CanalInstanceRedisService 
         String timeout = properties.getProperty("redis.timeout", "6000");
         String database = properties.getProperty("redis.database", "0");
 
-        String sentinelNodes = properties.getProperty("redis.sentinel.master", null);
-        String sentinelMaster = properties.getProperty("redis.sentinel.nodes", null);
+        String sentinelMaster = properties.getProperty("redis.sentinel.master", null);
+        String sentinelNodes = properties.getProperty("redis.sentinel.nodes", null);
 
         String clusterNodes = properties.getProperty("redis.cluster.nodes", null);
 
@@ -134,22 +135,21 @@ public class CanalInstanceRedisServiceImpl implements CanalInstanceRedisService 
             if (redisTemplateMap.get(key) != null) {
                 return null;
             }
-            RedisSentinelConfiguration redisSentinelConfiguration = new RedisSentinelConfiguration();
-            Set<RedisNode> nodes = new HashSet<>();
-            redisSentinelConfiguration.setSentinels(nodes);
-            redisSentinelConfiguration.setMaster(sentinelMaster);
+            String[] arr = sentinelNodes.split(",");
+            Set<String> nodes = new HashSet<>(Arrays.asList(arr));
+            RedisSentinelConfiguration redisSentinelConfiguration = new RedisSentinelConfiguration(sentinelMaster, nodes);
             redisSentinelConfiguration.setDatabase(Integer.parseInt(database));
-            redisSentinelConfiguration.setPassword(RedisPassword.of(password));
+            redisSentinelConfiguration.setPassword(password);
             return new JedisConnectionFactory(redisSentinelConfiguration, jedisClientConfiguration.build());
         } else if (StringUtils.isNotBlank(clusterNodes)) {
             properties.put("redis.template.key", clusterNodes);
             if (redisTemplateMap.get(clusterNodes) != null) {
                 return null;
             }
-            RedisClusterConfiguration redisClusterConfiguration = new RedisClusterConfiguration();
-            redisClusterConfiguration.setPassword(RedisPassword.of(password));
-            Set<RedisNode> nodes = new HashSet<>();
-            redisClusterConfiguration.setClusterNodes(nodes);
+            String[] arr = clusterNodes.split(",");
+            Set<String> nodes = new HashSet<>(Arrays.asList(arr));
+            RedisClusterConfiguration redisClusterConfiguration = new RedisClusterConfiguration(nodes);
+            redisClusterConfiguration.setPassword(password);
             return new JedisConnectionFactory(redisClusterConfiguration, jedisClientConfiguration.build());
         }
         throw new RuntimeException("未配置Mate Redis缓存");
