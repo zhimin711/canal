@@ -115,6 +115,7 @@ public class CanalInstanceRedisServiceImpl implements CanalInstanceRedisService 
 
         JedisClientConfiguration.JedisClientConfigurationBuilder jedisClientConfiguration = JedisClientConfiguration.builder();
         jedisClientConfiguration.connectTimeout(Duration.ofMillis(Integer.parseInt(timeout)));
+        jedisClientConfiguration.usePooling();
 
         if (StringUtils.isNotBlank(hostName)) {
             String key = hostName + "_" + port;
