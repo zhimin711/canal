@@ -6,7 +6,7 @@ spring:
     time-zone: GMT+8
 
 spring.datasource:
-  address: 192.168.1.104:3306
+  address: 192.168.199.194:3306
   database: canal_manager
   username: canal
   password: ENC(dqPwNRQOmdXsXL4N0jQ7Vw==)
