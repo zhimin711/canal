@@ -3,6 +3,8 @@ package com.alibaba.otter.canal.admin.controller;
 import java.util.List;
 import java.util.Map;
 
+import com.alibaba.otter.canal.admin.service.CanalInstanceRedisService;
+import com.alibaba.otter.canal.protocol.position.LogPosition;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -32,6 +34,8 @@ public class CanalInstanceController {
 
     @Autowired
     CanalInstanceService canalInstanceConfigService;
+    @Autowired
+    CanalInstanceRedisService canalInstanceRedisService;
 
     /**
      * 实例配置列表
@@ -176,5 +180,25 @@ public class CanalInstanceController {
     @GetMapping(value = "/instance/template")
     public BaseModel<String> template(@PathVariable String env) {
         return BaseModel.getInstance(TemplateConfigLoader.loadInstanceConfig());
+    }
+
+    /**
+     * @param id
+     * @param env
+     * @return
+     */
+    @GetMapping(value = "/instance/meta/position/{id}")
+    public BaseModel<LogPosition> instanceMeta(@PathVariable Long id, @PathVariable String env) {
+        return BaseModel.getInstance(canalInstanceRedisService.instanceMetaPosition(id));
+    }
+
+    /**
+     * @param id
+     * @param env
+     * @return
+     */
+    @PutMapping(value = "/instance/meta/position/{id}")
+    public BaseModel<Boolean> instanceMeta(@PathVariable Long id, @RequestBody LogPosition position, @PathVariable String env) {
+        return BaseModel.getInstance(canalInstanceRedisService.updateInstanceMetaPosition(id,position));
     }
 }
