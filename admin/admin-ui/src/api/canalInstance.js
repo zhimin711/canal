@@ -79,3 +79,18 @@ export function getTemplateInstance() {
     method: 'get'
   })
 }
+
+export function getRedisPosition(id) {
+  return request({
+    url: '/canal/instance/meta/position/' + id,
+    method: 'get'
+  })
+}
+
+export function updateRedisPosition(data) {
+  return request({
+    url: '/canal/instance/meta/position/' + data.instanceId,
+    method: 'put',
+    data
+  })
+}
