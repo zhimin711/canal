@@ -72,6 +72,7 @@ public class MemoryTableMeta implements TableMetaTSDB {
                 repository.setDefaultSchema(schema);
             }
 
+            String sql = trimSimpleComment(ddl);
             try {
                 // druid暂时flush privileges语法解析有问题
                 if (!StringUtils.startsWithIgnoreCase(StringUtils.trim(ddl), "flush")
@@ -81,7 +82,6 @@ public class MemoryTableMeta implements TableMetaTSDB {
                     && !StringUtils.startsWithIgnoreCase(StringUtils.trim(ddl), "alter user")
                     && !StringUtils.startsWithIgnoreCase(StringUtils.trim(ddl), "drop user")
                     && !StringUtils.startsWithIgnoreCase(StringUtils.trim(ddl), "create database")) {
-                    String sql = trimSimpleComment(ddl);
                     repository.console(sql);
                 }
             } catch (Throwable e) {
@@ -116,8 +116,9 @@ public class MemoryTableMeta implements TableMetaTSDB {
             } else if (psql.trim().length() == 0) {
                 sb.append("\n");
             }
-            if (!isCommentBlock && !psql.contains("/*") && !psql.contains("*/")) {
+            if (!isCommentBlock && !psql.trim().startsWith("/*") && !psql.trim().endsWith("*/")) {
                 sb.append(psql).append("\n");
+                continue;
             }
             if (!isCommentBlock && psql.trim().startsWith("/*")) {
                 isCommentBlock = true;
