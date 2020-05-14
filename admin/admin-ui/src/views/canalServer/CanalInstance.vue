@@ -72,25 +72,27 @@
     </el-table>
     <pagination v-show="count>0" :total="count" :page.sync="listQuery.page" :limit.sync="listQuery.size" @pagination="fetchData()" />
 
-    <el-dialog :visible.sync="dialogFormVisible" title="Reids游标信息" width="600px">
-      <el-form ref="dataForm" :model="metaPosition" label-position="left" label-width="100px" style="width: 400px; margin-left:30px;">
+    <el-dialog :visible.sync="dialogFormVisible" title="Reids游标信息" width="50%">
+      <el-form ref="dataForm" :model="metaPosition" label-position="left" label-width="120px" style=" margin-left:30px;">
         <el-form-item label="游标地址">
           <el-input v-model="metaPosition.identity.sourceAddress" disabled />
         </el-form-item>
         <el-form-item label="游标Binlog">
           <el-input v-model="metaPosition.postion.journalName" />
           <span class="form-item-desc">
-            <b style="font-size: 12px">show binary logs;</b><br>可查询当前实例Binlog
+            <b class="el-alert el-alert--info">show binary logs;</b>可查询当前实例Binlog
           </span>
         </el-form-item>
         <el-form-item label="当前游标位置">
           <el-input v-model="metaPosition.postion.position" />
           <span class="form-item-desc">
-            <b style="font-size: 12px">show BINLOG EVENTS in 'mysql-bin.xxxx' from xx;</b><br>可查询Binlog可用位置
+            <b class="el-alert el-alert--info" style="font-size: 12px">show BINLOG EVENTS in '{{ metaPosition.postion.journalName }}' from {{ metaPosition.postion.position }};</b>
+            可查询Binlog可用位置
           </span>
         </el-form-item>
         <el-form-item label="游标时间戳">
-          <el-input v-model="metaPosition.postion.timestamp" disabled />
+          <!--<el-input v-model="metaPosition.postion.timestamp" disabled />-->
+          <el-date-picker v-model="metaPosition.postion.timestamp" type="datetime" value-format="timestamp" disabled/>
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
