@@ -16,9 +16,10 @@ import org.springframework.data.redis.connection.RedisSentinelConfiguration;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.jedis.JedisClientConfiguration;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.serializer.StringRedisSerializer;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import redis.clients.jedis.JedisPool;
+import redis.clients.jedis.JedisPoolConfig;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -32,12 +33,12 @@ public class CanalInstanceRedisServiceImpl implements CanalInstanceRedisService 
     @Autowired
     private CanalConfigService canalConfigService;
 
-    private Map<String, RedisTemplate<String, Object>> redisTemplateMap = Maps.newHashMap();
+    private Map<String, StringRedisTemplate> redisTemplateMap = Maps.newHashMap();
 
     @Override
     public LogPosition instanceMetaPosition(Long id) {
         Properties properties = loadConfig(id);
-        RedisTemplate<String, Object> redisTemplate = initRedisTemplate(properties);
+        StringRedisTemplate redisTemplate = initRedisTemplate(properties);
         if (redisTemplate == null) return null;
         String destinationKey = "otter_canal_meta:destination:" + properties.getProperty("destination.name");
         Long clientId = getClientId(redisTemplate, destinationKey);
@@ -50,7 +51,7 @@ public class CanalInstanceRedisServiceImpl implements CanalInstanceRedisService 
         return JsonUtils.unmarshalFromString(json.toString(), LogPosition.class);
     }
 
-    private Long getClientId(RedisTemplate<String, Object> redisTemplate, String destinationKey) {
+    private Long getClientId(StringRedisTemplate redisTemplate, String destinationKey) {
         Set<Object> clientJson = redisTemplate.opsForHash().entries(destinationKey).keySet();
         long clientId = 0;
         for (Object key : clientJson) {
@@ -79,7 +80,14 @@ public class CanalInstanceRedisServiceImpl implements CanalInstanceRedisService 
         return null;
     }
 
-    private RedisTemplate<String, Object> initRedisTemplate(Properties properties) {
+    private Map<String, JedisPool> poolMap = new HashMap<>();
+
+    private JedisPool initJedis(Properties properties) {
+
+        return null;
+    }
+
+    private StringRedisTemplate initRedisTemplate(Properties properties) {
         if (properties == null) return null;
         JedisConnectionFactory factory = initJedisConnectionFactory(properties);
         if (factory == null) {
@@ -87,18 +95,10 @@ public class CanalInstanceRedisServiceImpl implements CanalInstanceRedisService 
         }
         factory.afterPropertiesSet();
 
-        RedisTemplate<String, Object> redisTemplate = new RedisTemplate<>();
-        redisTemplate.setKeySerializer(new StringRedisSerializer());
-        redisTemplate.setHashKeySerializer(new StringRedisSerializer());
-        redisTemplate.setHashValueSerializer(new StringRedisSerializer());
-        redisTemplate.setValueSerializer(new StringRedisSerializer());
-        // 开启事务
-        redisTemplate.setEnableTransactionSupport(true);
-        redisTemplate.setConnectionFactory(factory);
-        redisTemplate.afterPropertiesSet();
+        StringRedisTemplate stringRedisTemplate = new StringRedisTemplate(factory);
 //        log.info("RedisTemplate实例化成功！");
-        redisTemplateMap.put(properties.getProperty("redis.template.key"), redisTemplate);
-        return redisTemplate;
+        redisTemplateMap.put(properties.getProperty("redis.template.key"), stringRedisTemplate);
+        return stringRedisTemplate;
     }
 
     private JedisConnectionFactory initJedisConnectionFactory(Properties properties) {
@@ -108,6 +108,8 @@ public class CanalInstanceRedisServiceImpl implements CanalInstanceRedisService 
         String timeout = properties.getProperty("redis.timeout", "6000");
         String database = properties.getProperty("redis.database", "0");
 
+        String testOnBorrow = properties.getProperty("redis.testOnBorrow", "true");
+
         String sentinelMaster = properties.getProperty("redis.sentinel.master", null);
         String sentinelNodes = properties.getProperty("redis.sentinel.nodes", null);
 
@@ -115,6 +117,21 @@ public class CanalInstanceRedisServiceImpl implements CanalInstanceRedisService 
 
         JedisClientConfiguration.JedisClientConfigurationBuilder jedisClientConfiguration = JedisClientConfiguration.builder();
         jedisClientConfiguration.connectTimeout(Duration.ofMillis(Integer.parseInt(timeout)));
+
+        JedisPoolConfig jedisPoolConfig = new JedisPoolConfig();
+        //最大连接数
+        jedisPoolConfig.setMaxTotal(10);
+        jedisPoolConfig.setMaxIdle(5);
+        //最小空闲连接数
+        jedisPoolConfig.setMinIdle(20);
+        //当池内没有可用的连接时，最大等待时间
+        jedisPoolConfig.setMaxWaitMillis(5000);
+        jedisPoolConfig.setTestOnBorrow(Boolean.parseBoolean(testOnBorrow));
+        jedisPoolConfig.setTestOnReturn(true);
+        //------其他属性根据需要自行添加-------------
+
+        jedisClientConfiguration.usePooling();
+
 
         if (StringUtils.isNotBlank(hostName)) {
             String key = hostName + "_" + port;
@@ -140,7 +157,7 @@ public class CanalInstanceRedisServiceImpl implements CanalInstanceRedisService 
             RedisSentinelConfiguration redisSentinelConfiguration = new RedisSentinelConfiguration(sentinelMaster, nodes);
             redisSentinelConfiguration.setDatabase(Integer.parseInt(database));
             redisSentinelConfiguration.setPassword(password);
-            return new JedisConnectionFactory(redisSentinelConfiguration, jedisClientConfiguration.build());
+            return new JedisConnectionFactory(redisSentinelConfiguration, jedisPoolConfig);
         } else if (StringUtils.isNotBlank(clusterNodes)) {
             properties.put("redis.template.key", clusterNodes);
             if (redisTemplateMap.get(clusterNodes) != null) {
@@ -150,7 +167,7 @@ public class CanalInstanceRedisServiceImpl implements CanalInstanceRedisService 
             Set<String> nodes = new HashSet<>(Arrays.asList(arr));
             RedisClusterConfiguration redisClusterConfiguration = new RedisClusterConfiguration(nodes);
             redisClusterConfiguration.setPassword(password);
-            return new JedisConnectionFactory(redisClusterConfiguration, jedisClientConfiguration.build());
+            return new JedisConnectionFactory(redisClusterConfiguration, jedisPoolConfig);
         }
         throw new RuntimeException("未配置Mate Redis缓存");
 
@@ -159,7 +176,7 @@ public class CanalInstanceRedisServiceImpl implements CanalInstanceRedisService 
     @Override
     public Boolean updateInstanceMetaPosition(Long id, LogPosition position) {
         Properties properties = loadConfig(id);
-        RedisTemplate<String, Object> redisTemplate = initRedisTemplate(properties);
+        StringRedisTemplate redisTemplate = initRedisTemplate(properties);
         if (redisTemplate == null) return false;
         String destinationKey = "otter_canal_meta:destination:" + properties.getProperty("destination.name");
         Long clientId = getClientId(redisTemplate, destinationKey);
@@ -173,6 +190,7 @@ public class CanalInstanceRedisServiceImpl implements CanalInstanceRedisService 
 
         String batchKey = destinationKey + ":" + clientId + ":max:batch";
         redisTemplate.opsForValue().set(batchKey, "0");
+
         return true;
     }
 }
