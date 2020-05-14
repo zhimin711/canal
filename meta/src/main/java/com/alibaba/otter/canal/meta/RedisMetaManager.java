@@ -50,7 +50,7 @@ public class RedisMetaManager extends AbstractCanalLifeCycle implements CanalMet
 
     private static SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyyMMdd", Locale.CHINA);
 
-    protected JedisPoolConfig jedisPoolConfig;
+    private JedisPoolConfig jedisPoolConfig;
 
     private String redisHost;
 
