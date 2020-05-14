@@ -117,6 +117,7 @@ public class CanalInstanceRedisServiceImpl implements CanalInstanceRedisService 
 
         JedisClientConfiguration.JedisClientConfigurationBuilder jedisClientConfiguration = JedisClientConfiguration.builder();
         jedisClientConfiguration.connectTimeout(Duration.ofMillis(Integer.parseInt(timeout)));
+        jedisClientConfiguration.usePooling();
 
         JedisPoolConfig jedisPoolConfig = new JedisPoolConfig();
         //最大连接数
