@@ -193,7 +193,7 @@ public class CanalServerWithEmbedded extends AbstractCanalLifeCycle implements C
             }
             logger.info("subscribe successfully, {} with first position:{} ", clientIdentity, position);
         } else {
-            logger.info("subscribe successfully, use last cursor position:{} ", clientIdentity, position);
+            logger.info("subscribe successfully, {} use last cursor position:{} ", clientIdentity, position);
         }
 
         // 通知下订阅关系变化
@@ -240,7 +240,7 @@ public class CanalServerWithEmbedded extends AbstractCanalLifeCycle implements C
      * b. 如果timeout不为null
      *    1. timeout为0，则采用get阻塞方式，获取数据，不设置超时，直到有足够的batchSize数据才返回
      *    2. timeout不为0，则采用get+timeout方式，获取数据，超时还没有batchSize足够的数据，有多少返回多少
-     * 
+     *
      * 注意： meta获取和数据的获取需要保证顺序性，优先拿到meta的，一定也会是优先拿到数据，所以需要加同步. (不能出现先拿到meta，拿到第二批数据，这样就会导致数据顺序性出现问题)
      * </pre>
      */
@@ -327,7 +327,7 @@ public class CanalServerWithEmbedded extends AbstractCanalLifeCycle implements C
      * b. 如果timeout不为null
      *    1. timeout为0，则采用get阻塞方式，获取数据，不设置超时，直到有足够的batchSize数据才返回
      *    2. timeout不为0，则采用get+timeout方式，获取数据，超时还没有batchSize足够的数据，有多少返回多少
-     * 
+     *
      * 注意： meta获取和数据的获取需要保证顺序性，优先拿到meta的，一定也会是优先拿到数据，所以需要加同步. (不能出现先拿到meta，拿到第二批数据，这样就会导致数据顺序性出现问题)
      * </pre>
      */

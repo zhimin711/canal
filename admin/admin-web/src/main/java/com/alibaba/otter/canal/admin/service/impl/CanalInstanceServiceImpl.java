@@ -170,6 +170,17 @@ public class CanalInstanceServiceImpl implements CanalInstanceService {
         }
     }
 
+    @Override
+    public CanalInstanceConfig findByInstanceName(String name) {
+        if (StringUtils.isBlank(name)) return null;
+        List<CanalInstanceConfig> list = CanalInstanceConfig.find.query()
+                .setDisableLazyLoading(true)
+                .select("id, clusterId, serverId, name, modifiedTime")
+                .fetch("nodeServer", "id")
+                .where().eq("name", name).findList();
+        return list.isEmpty() ? null : list.get(0);
+    }
+
     public void save(CanalInstanceConfig canalInstanceConfig) {
         if (StringUtils.isEmpty(canalInstanceConfig.getClusterServerId())) {
             throw new ServiceException("empty cluster or server id");

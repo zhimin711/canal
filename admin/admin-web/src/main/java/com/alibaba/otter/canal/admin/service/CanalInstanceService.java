@@ -31,4 +31,6 @@ public interface CanalInstanceService {
     boolean instanceOperation(Long id, String option);
 
     List<CanalInstanceConfig> findActiveInstanceByServerId(Long serverId);
+
+    CanalInstanceConfig findByInstanceName(String name);
 }

@@ -13,4 +13,6 @@ public interface CanalInstanceRedisService {
     LogPosition instanceMetaPosition(Long id);
 
     Boolean updateInstanceMetaPosition(Long id, LogPosition position);
+
+    Boolean resetInstanceMetaBatchId(Long id);
 }

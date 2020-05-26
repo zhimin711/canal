@@ -35,7 +35,11 @@
 	</bean>
 
 	<!-- 报警处理类 -->
-	<bean id="alarmHandler" class="com.alibaba.otter.canal.common.alarm.LogAlarmHandler" />
+	<bean id="alarmHandler" class="com.alibaba.otter.canal.admin.alarm.AdminAlarmHandler" init-method="start">
+		<property name="managerUrl" value="${canal.admin.manager}"/>
+		<property name="user" value="${canal.admin.user}"/>
+		<property name="passwd" value="${canal.admin.passwd}"/>
+	</bean>
 
 	<bean id="jedisPoolConfig" class="redis.clients.jedis.JedisPoolConfig">
 		<property name="maxIdle" value="${redis.pool.max-idle:5}" />
@@ -45,7 +49,7 @@
 		<property name="testOnBorrow" value="${redis.testOnBorrow:true}" />
 	</bean>
 
-	<bean id="metaManager" class="com.alibaba.otter.canal.meta.RedisMetaManager">
+	<bean id="redisMetaManager" class="com.alibaba.otter.canal.meta.RedisMetaManager">
 		<property name="jedisPoolConfig" ref="jedisPoolConfig" />
 		<property name="redisHost" value="${redis.host}" />
 		<property name="redisPort" value="${redis.port:6379}" />
@@ -59,6 +63,12 @@
 		<property name="soTimeout" value="${redis.cluster.soTimeout:2000}" />
 		<property name="maxAttempts" value="${redis.cluster.maxAttempts:5}" />
 	</bean>
+
+	<bean id="metaManager" class="com.alibaba.otter.canal.meta.PeriodMixedRedisMetaManager">
+		<property name="redisMetaManager" ref="redisMetaManager" />
+		<property name="period" value="${canal.redis.flush.period:1000}" />
+	</bean>
+
 
 	<bean id="eventStore" class="com.alibaba.otter.canal.store.memory.MemoryEventStoreWithBuffer">
 		<property name="bufferSize" value="${canal.instance.memory.buffer.size:16384}" />

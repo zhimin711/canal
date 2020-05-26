@@ -66,6 +66,21 @@ CREATE TABLE `canal_instance_config` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- ----------------------------
+-- Table structure for canal_instance_alarm
+-- ----------------------------
+DROP TABLE IF EXISTS `canal_instance_alarm`;
+CREATE TABLE `canal_instance_alarm` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `name` varchar(45) NOT NULL,
+  `type` varchar(55) DEFAULT NULL,
+  `message` text NOT NULL,
+  `status` varchar(45) NOT NULL DEFAULT '0',
+  `created_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `modified_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_cia_type_name_status` (`type`,`name`,`status`)
+)
+-- ----------------------------
 -- Table structure for canal_node_server
 -- ----------------------------
 DROP TABLE IF EXISTS `canal_node_server`;

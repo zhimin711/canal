@@ -1,27 +1,28 @@
 package com.alibaba.otter.canal.server;
 
+import com.alibaba.otter.canal.common.alarm.Alarm;
+import com.alibaba.otter.canal.common.alarm.AlarmType;
+import com.alibaba.otter.canal.connector.core.config.MQProperties;
+import com.alibaba.otter.canal.connector.core.producer.MQDestination;
+import com.alibaba.otter.canal.connector.core.spi.CanalMQProducer;
+import com.alibaba.otter.canal.connector.core.util.Callback;
+import com.alibaba.otter.canal.instance.core.CanalInstance;
+import com.alibaba.otter.canal.instance.core.CanalMQConfig;
+import com.alibaba.otter.canal.meta.exception.CanalMetaManagerException;
+import com.alibaba.otter.canal.protocol.ClientIdentity;
+import com.alibaba.otter.canal.protocol.Message;
+import com.alibaba.otter.canal.server.embedded.CanalServerWithEmbedded;
+import org.apache.commons.lang.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import com.alibaba.otter.canal.connector.core.util.Callback;
-import com.alibaba.otter.canal.connector.core.producer.MQDestination;
-import org.apache.commons.lang.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
-
-import com.alibaba.otter.canal.connector.core.spi.CanalMQProducer;
-import com.alibaba.otter.canal.instance.core.CanalInstance;
-import com.alibaba.otter.canal.instance.core.CanalMQConfig;
-import com.alibaba.otter.canal.protocol.ClientIdentity;
-import com.alibaba.otter.canal.protocol.Message;
-import com.alibaba.otter.canal.server.embedded.CanalServerWithEmbedded;
-
-import com.alibaba.otter.canal.connector.core.config.MQProperties;
 
 public class CanalMQStarter {
 
@@ -200,12 +201,21 @@ public class CanalMQStarter {
                             }
                         }
 
+                    } catch (CanalMetaManagerException e) {
+                        logger.error(e.getMessage(), e);
+                        canalInstance.getAlarmHandler().sendAlarm(destination, Alarm.buildJson(AlarmType.META_FIRSTLY, e));
                     } catch (Exception e) {
                         logger.error(e.getMessage(), e);
+                        canalInstance.getAlarmHandler().sendAlarm(destination, Alarm.buildJson(AlarmType.UNKNOWN, e));
                     }
                 }
             } catch (Exception e) {
                 logger.error("process error!", e);
+                try {
+                    canalServer.getCanalInstances().get(destination)
+                            .getAlarmHandler().sendAlarm(destination, Alarm.buildJson(AlarmType.PROCESS, e));
+                } catch (Exception ignore) {
+                }
             }
         }
     }

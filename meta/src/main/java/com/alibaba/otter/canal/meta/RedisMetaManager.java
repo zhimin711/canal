@@ -167,19 +167,7 @@ public class RedisMetaManager extends AbstractCanalLifeCycle implements CanalMet
 
     @Override
     public void updateCursor(ClientIdentity clientIdentity, Position position) throws CanalMetaManagerException {
-        String dateStr = simpleDateFormat.format(new Date());
-        String metaKey = getRedisKey(KEY_DESTINATIONS, clientIdentity.getDestination(), clientIdentity.getClientId(), dateStr);
-        invokeRedis(jedis -> {
-            if (redisMetaExpire != null && redisMetaExpire > 3600) { // 配置大于1小时才缓存Binlog游标
-                if (jedis.exists(metaKey)) {
-                    jedis.sadd(metaKey, position.toString());
-                } else {
-                    jedis.sadd(metaKey, position.toString());
-                    jedis.expire(metaKey, redisMetaExpire);
-                }
-            }
-            return jedis.set(getRedisKey(KEY_DESTINATIONS, clientIdentity.getDestination(), clientIdentity.getClientId(), KEY_CURSOR), JsonUtils.marshalToString(position, SerializerFeature.WriteClassName));
-        });
+        invokeRedis(jedis -> jedis.set(getRedisKey(KEY_DESTINATIONS, clientIdentity.getDestination(), clientIdentity.getClientId(), KEY_CURSOR), JsonUtils.marshalToString(position, SerializerFeature.WriteClassName)));
     }
 
     @Override

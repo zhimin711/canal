@@ -5,7 +5,9 @@ import com.alibaba.otter.canal.admin.model.CanalConfig;
 import com.alibaba.otter.canal.admin.model.CanalInstanceConfig;
 import com.alibaba.otter.canal.admin.service.CanalConfigService;
 import com.alibaba.otter.canal.admin.service.CanalInstanceRedisService;
+import com.alibaba.otter.canal.admin.utils.RedisMetaUtils;
 import com.alibaba.otter.canal.common.utils.JsonUtils;
+import com.alibaba.otter.canal.protocol.ClientIdentity;
 import com.alibaba.otter.canal.protocol.position.LogPosition;
 import com.google.common.collect.Maps;
 import org.apache.commons.lang.StringUtils;
@@ -40,11 +42,10 @@ public class CanalInstanceRedisServiceImpl implements CanalInstanceRedisService 
         Properties properties = loadConfig(id);
         StringRedisTemplate redisTemplate = initRedisTemplate(properties);
         if (redisTemplate == null) return null;
-        String destinationKey = "otter_canal_meta:destination:" + properties.getProperty("destination.name");
-        Long clientId = getClientId(redisTemplate, destinationKey);
-        String cursorKey = destinationKey + ":" + clientId + ":cursor";
 
-        Object json = redisTemplate.opsForValue().get(cursorKey);
+        final ClientIdentity clientIdentity = new ClientIdentity(properties.getProperty("destination.name"), (short) 1001, "");
+
+        Object json = redisTemplate.opsForValue().get(RedisMetaUtils.getKeyOfCursor(clientIdentity));
         if (json == null) {
             return null;
         }
@@ -77,13 +78,6 @@ public class CanalInstanceRedisServiceImpl implements CanalInstanceRedisService 
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return null;
-    }
-
-    private Map<String, JedisPool> poolMap = new HashMap<>();
-
-    private JedisPool initJedis(Properties properties) {
-
         return null;
     }
 
@@ -179,19 +173,30 @@ public class CanalInstanceRedisServiceImpl implements CanalInstanceRedisService 
         Properties properties = loadConfig(id);
         StringRedisTemplate redisTemplate = initRedisTemplate(properties);
         if (redisTemplate == null) return false;
-        String destinationKey = "otter_canal_meta:destination:" + properties.getProperty("destination.name");
-        Long clientId = getClientId(redisTemplate, destinationKey);
+        final ClientIdentity clientIdentity = new ClientIdentity(properties.getProperty("destination.name"), (short) 1001, "");
 
-        String cursorKey = destinationKey + ":" + clientId + ":cursor";
+        redisTemplate.delete(RedisMetaUtils.getKeyOfClientBatch(clientIdentity));
+        redisTemplate.delete(RedisMetaUtils.getKeyOfMaxBatch(clientIdentity));
         if (position.getPostion() == null) {
-            redisTemplate.delete(cursorKey);
+            redisTemplate.delete(RedisMetaUtils.getKeyOfCursor(clientIdentity));
         } else {
-            redisTemplate.opsForValue().set(cursorKey, JsonUtils.marshalToString(position, SerializerFeature.WriteClassName));
+            redisTemplate.opsForValue().set(RedisMetaUtils.getKeyOfCursor(clientIdentity), JsonUtils.marshalToString(position, SerializerFeature.WriteClassName));
         }
-
-        String batchKey = destinationKey + ":" + clientId + ":max:batch";
-        redisTemplate.opsForValue().set(batchKey, "0");
 
         return true;
     }
+
+
+    @Override
+    public Boolean resetInstanceMetaBatchId(Long id) {
+        Properties properties = loadConfig(id);
+        StringRedisTemplate redisTemplate = initRedisTemplate(properties);
+        if (redisTemplate == null) return false;
+        final ClientIdentity clientIdentity = new ClientIdentity(properties.getProperty("destination.name"), (short) 1001, "");
+        redisTemplate.delete(RedisMetaUtils.getKeyOfMaxBatch(clientIdentity));
+
+        return true;
+    }
+
+
 }

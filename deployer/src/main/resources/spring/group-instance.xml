@@ -35,7 +35,11 @@
 	</bean>
 
 	<!-- 报警处理类 -->
-	<bean id="alarmHandler" class="com.alibaba.otter.canal.common.alarm.LogAlarmHandler" />
+	<bean id="alarmHandler" class="com.alibaba.otter.canal.admin.alarm.AdminAlarmHandler" init-method="start">
+		<property name="managerUrl" value="${canal.admin.manager}"/>
+		<property name="user" value="${canal.admin.user}"/>
+		<property name="passwd" value="${canal.admin.passwd}"/>
+	</bean>
 
 	<bean id="metaManager" class="com.alibaba.otter.canal.meta.MemoryMetaManager" />
 
