@@ -22,13 +22,15 @@ public class AdminAlarmHandler extends LogAlarmHandler {
 
     private HttpHelper httpHelper;
 
+    private String alarmEnable;
+
     private String managerUrl;
     private String user;
     private String passwd;
 
     @Override
     public void start() {
-        if (StringUtils.isBlank(this.managerUrl)) {
+        if (StringUtils.isBlank(this.managerUrl) && isEnabled()) {
             return;
         }
         super.start();
@@ -62,6 +64,14 @@ public class AdminAlarmHandler extends LogAlarmHandler {
         if (!HttpHelper.REST_STATE_OK.equals(resp.code)) {
             throw new CanalException("requestPost for canal alarm error: " + resp.message);
         }
+    }
+
+    public boolean isEnabled() {
+       return Boolean.parseBoolean(alarmEnable);
+    }
+
+    public void setAlarmEnable(String alarmEnable) {
+        this.alarmEnable = alarmEnable;
     }
 
     private static class ResponseModel<T> {
