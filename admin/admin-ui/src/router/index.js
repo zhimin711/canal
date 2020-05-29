@@ -107,6 +107,12 @@ export const constantRoutes = [
         meta: { title: 'Instance 管理', icon: 'nested' }
       },
       {
+        path: 'canalAlarms',
+        name: 'Instance 管理',
+        component: () => import('@/views/canalServer/CanalAlarm'),
+        meta: { title: '告警 管理', icon: 'nested' }
+      },
+      {
         path: 'canalInstance/add',
         name: '新建Instance配置',
         component: () => import('@/views/canalServer/CanalInstanceAdd'),
