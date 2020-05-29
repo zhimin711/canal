@@ -55,7 +55,7 @@ public class PollingAlarmServiceImpl implements PollingAlarmService {
         int count = queryCnt.findCount();
         pager.setCount((long) count);
 
-        query.setFirstRow(pager.getOffset().intValue()).setMaxRows(pager.getSize()).order().asc("id");
+        query.setFirstRow(pager.getOffset().intValue()).setMaxRows(pager.getSize()).order().desc("id");
         List<CanalInstanceAlarm> canalInstanceConfigs = query.findList();
         pager.setItems(canalInstanceConfigs);
 
