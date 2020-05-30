@@ -111,7 +111,8 @@ public class MemoryTableMeta implements TableMetaTSDB {
         boolean isCommentBlock = false;
         StringBuilder sb = new StringBuilder(sql.length());
         for (String psql : sqls) {
-            if (psql.startsWith("--") || psql.startsWith("#")) {
+            String tmp = psql.trim();
+            if (tmp.startsWith("--") || tmp.startsWith("#")) {
                 continue;
             } else if (psql.trim().length() == 0) {
                 sb.append("\n");
