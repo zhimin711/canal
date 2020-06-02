@@ -4,9 +4,11 @@ import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.alibaba.otter.canal.admin.model.CanalConfig;
 import com.alibaba.otter.canal.admin.model.CanalInstanceConfig;
 import com.alibaba.otter.canal.admin.service.CanalConfigService;
-import com.alibaba.otter.canal.admin.service.CanalInstanceRedisService;
+import com.alibaba.otter.canal.admin.service.CanalInstanceMetaService;
 import com.alibaba.otter.canal.admin.utils.RedisMetaUtils;
 import com.alibaba.otter.canal.common.utils.JsonUtils;
+import com.alibaba.otter.canal.common.zookeeper.ZkClientx;
+import com.alibaba.otter.canal.common.zookeeper.ZookeeperPathUtils;
 import com.alibaba.otter.canal.protocol.ClientIdentity;
 import com.alibaba.otter.canal.protocol.position.LogPosition;
 import com.google.common.collect.Maps;
@@ -20,7 +22,6 @@ import org.springframework.data.redis.connection.jedis.JedisClientConfiguration;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
-import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 
 import java.io.ByteArrayInputStream;
@@ -30,7 +31,7 @@ import java.time.Duration;
 import java.util.*;
 
 @Service
-public class CanalInstanceRedisServiceImpl implements CanalInstanceRedisService {
+public class CanalInstanceMetaServiceImpl implements CanalInstanceMetaService {
 
     @Autowired
     private CanalConfigService canalConfigService;
@@ -40,16 +41,41 @@ public class CanalInstanceRedisServiceImpl implements CanalInstanceRedisService 
     @Override
     public LogPosition instanceMetaPosition(Long id) {
         Properties properties = loadConfig(id);
-        StringRedisTemplate redisTemplate = initRedisTemplate(properties);
-        if (redisTemplate == null) return null;
+        if (properties == null) return null;
+        boolean isZookeeper = "classpath:spring/default-instance.xml".equals(properties.getProperty("canal.instance.global.spring.xml"));
+        boolean isRedis = "classpath:spring/redis-instance.xml".equals(properties.getProperty("canal.instance.global.spring.xml"));
 
         final ClientIdentity clientIdentity = new ClientIdentity(properties.getProperty("destination.name"), (short) 1001, "");
+        if (isRedis) {
+            StringRedisTemplate redisTemplate = initRedisTemplate(properties);
+            if (redisTemplate == null) return null;
+            Object json = redisTemplate.opsForValue().get(RedisMetaUtils.getKeyOfCursor(clientIdentity));
+            if (json == null) {
+                return null;
+            }
+            return JsonUtils.unmarshalFromString(json.toString(), LogPosition.class);
+        } else if (isZookeeper) {
+            ZkClientx zkClientx = initZkClientx(properties);
+            return getZkCursor(zkClientx, clientIdentity);
+        }
+        return null;
+    }
 
-        Object json = redisTemplate.opsForValue().get(RedisMetaUtils.getKeyOfCursor(clientIdentity));
-        if (json == null) {
+    private LogPosition getZkCursor(ZkClientx zkClientx, ClientIdentity clientIdentity) {
+        String path = ZookeeperPathUtils.getCursorPath(clientIdentity.getDestination(), clientIdentity.getClientId());
+
+        byte[] data = zkClientx.readData(path, true);
+        if (data == null || data.length == 0) {
             return null;
         }
-        return JsonUtils.unmarshalFromString(json.toString(), LogPosition.class);
+
+        return JsonUtils.unmarshalFromByte(data, LogPosition.class);
+    }
+
+
+    private ZkClientx initZkClientx(Properties properties) {
+        String zkServers = properties.getProperty("canal.zkServers");
+        return ZkClientx.getZkClient(zkServers);
     }
 
     private Long getClientId(StringRedisTemplate redisTemplate, String destinationKey) {
@@ -171,9 +197,13 @@ public class CanalInstanceRedisServiceImpl implements CanalInstanceRedisService 
     @Override
     public Boolean updateInstanceMetaPosition(Long id, LogPosition position) {
         Properties properties = loadConfig(id);
+
+        boolean isZookeeper = "classpath:spring/default-instance.xml".equals(properties.getProperty("canal.instance.global.spring.xml"));
+        boolean isRedis = "classpath:spring/redis-instance.xml".equals(properties.getProperty("canal.instance.global.spring.xml"));
+
+        final ClientIdentity clientIdentity = new ClientIdentity(properties.getProperty("destination.name"), (short) 1001, "");
         StringRedisTemplate redisTemplate = initRedisTemplate(properties);
         if (redisTemplate == null) return false;
-        final ClientIdentity clientIdentity = new ClientIdentity(properties.getProperty("destination.name"), (short) 1001, "");
 
         redisTemplate.delete(RedisMetaUtils.getKeyOfClientBatch(clientIdentity));
         redisTemplate.delete(RedisMetaUtils.getKeyOfMaxBatch(clientIdentity));
