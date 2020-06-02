@@ -8,7 +8,7 @@ import com.alibaba.otter.canal.protocol.position.LogPosition;
  * @author rewerma 2019-07-13 下午05:12:16
  * @version 1.0.0
  */
-public interface CanalInstanceRedisService {
+public interface CanalInstanceMetaService {
 
     LogPosition instanceMetaPosition(Long id);
 

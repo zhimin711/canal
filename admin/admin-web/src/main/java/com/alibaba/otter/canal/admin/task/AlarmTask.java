@@ -3,7 +3,7 @@ package com.alibaba.otter.canal.admin.task;
 import com.alibaba.otter.canal.admin.model.CanalInstanceAlarm;
 import com.alibaba.otter.canal.admin.model.CanalInstanceConfig;
 import com.alibaba.otter.canal.admin.model.Pager;
-import com.alibaba.otter.canal.admin.service.CanalInstanceRedisService;
+import com.alibaba.otter.canal.admin.service.CanalInstanceMetaService;
 import com.alibaba.otter.canal.admin.service.CanalInstanceService;
 import com.alibaba.otter.canal.admin.service.PollingAlarmService;
 import com.alibaba.otter.canal.common.alarm.AlarmType;
@@ -11,7 +11,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -29,7 +28,7 @@ public class AlarmTask implements InitializingBean {
     private CanalInstanceService canalInstanceService;
 
     @Autowired
-    private CanalInstanceRedisService canalInstanceRedisService;
+    private CanalInstanceMetaService canalInstanceMetaService;
     @Autowired
     PollingAlarmService pollingAlarmService;
 
@@ -85,7 +84,7 @@ public class AlarmTask implements InitializingBean {
     }
 
     private void handleInstance(CanalInstanceConfig instanceConfig) {
-        canalInstanceRedisService.resetInstanceMetaBatchId(instanceConfig.getId());
+        canalInstanceMetaService.resetInstanceMetaBatchId(instanceConfig.getId());
         canalInstanceService.instanceOperation(instanceConfig.getId(), "start");
     }
 
