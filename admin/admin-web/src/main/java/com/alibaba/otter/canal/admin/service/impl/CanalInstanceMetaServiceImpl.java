@@ -247,7 +247,8 @@ public class CanalInstanceMetaServiceImpl implements CanalInstanceMetaService {
             if (redisTemplate == null) return false;
             redisTemplate.delete(RedisMetaUtils.getKeyOfMaxBatch(clientIdentity));
         } else if (isZookeeper) {
-
+            //todo remove zookeeper batch
+            ZkClientx zkClientx = initZkClientx(properties);
         }
 
         return true;
