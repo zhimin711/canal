@@ -12,6 +12,7 @@ import com.alibaba.otter.canal.common.zookeeper.ZookeeperPathUtils;
 import com.alibaba.otter.canal.protocol.ClientIdentity;
 import com.alibaba.otter.canal.protocol.position.LogPosition;
 import com.google.common.collect.Maps;
+import org.I0Itec.zkclient.exception.ZkNoNodeException;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.connection.RedisClusterConfiguration;
@@ -198,19 +199,35 @@ public class CanalInstanceMetaServiceImpl implements CanalInstanceMetaService {
     public Boolean updateInstanceMetaPosition(Long id, LogPosition position) {
         Properties properties = loadConfig(id);
 
+        if (properties == null) return false;
+
         boolean isZookeeper = "classpath:spring/default-instance.xml".equals(properties.getProperty("canal.instance.global.spring.xml"));
         boolean isRedis = "classpath:spring/redis-instance.xml".equals(properties.getProperty("canal.instance.global.spring.xml"));
 
         final ClientIdentity clientIdentity = new ClientIdentity(properties.getProperty("destination.name"), (short) 1001, "");
-        StringRedisTemplate redisTemplate = initRedisTemplate(properties);
-        if (redisTemplate == null) return false;
 
-        redisTemplate.delete(RedisMetaUtils.getKeyOfClientBatch(clientIdentity));
-        redisTemplate.delete(RedisMetaUtils.getKeyOfMaxBatch(clientIdentity));
-        if (position.getPostion() == null) {
-            redisTemplate.delete(RedisMetaUtils.getKeyOfCursor(clientIdentity));
+        if (isRedis) {
+            StringRedisTemplate redisTemplate = initRedisTemplate(properties);
+            if (redisTemplate == null) return false;
+
+            redisTemplate.delete(RedisMetaUtils.getKeyOfClientBatch(clientIdentity));
+            redisTemplate.delete(RedisMetaUtils.getKeyOfMaxBatch(clientIdentity));
+            if (position.getPostion() == null) {
+                redisTemplate.delete(RedisMetaUtils.getKeyOfCursor(clientIdentity));
+            } else {
+                redisTemplate.opsForValue().set(RedisMetaUtils.getKeyOfCursor(clientIdentity), JsonUtils.marshalToString(position, SerializerFeature.WriteClassName));
+            }
+        } else if (isZookeeper) {
+            ZkClientx zkClientx = initZkClientx(properties);
+            String path = ZookeeperPathUtils.getCursorPath(clientIdentity.getDestination(), clientIdentity.getClientId());
+            byte[] data = JsonUtils.marshalToByte(position, SerializerFeature.WriteClassName);
+            try {
+                zkClientx.writeData(path, data);
+            } catch (ZkNoNodeException e) {
+                zkClientx.createPersistent(path, data, true);// 第一次节点不存在，则尝试重建
+            }
         } else {
-            redisTemplate.opsForValue().set(RedisMetaUtils.getKeyOfCursor(clientIdentity), JsonUtils.marshalToString(position, SerializerFeature.WriteClassName));
+            return false;
         }
 
         return true;
@@ -220,10 +237,18 @@ public class CanalInstanceMetaServiceImpl implements CanalInstanceMetaService {
     @Override
     public Boolean resetInstanceMetaBatchId(Long id) {
         Properties properties = loadConfig(id);
-        StringRedisTemplate redisTemplate = initRedisTemplate(properties);
-        if (redisTemplate == null) return false;
+        if (properties == null) return false;
         final ClientIdentity clientIdentity = new ClientIdentity(properties.getProperty("destination.name"), (short) 1001, "");
-        redisTemplate.delete(RedisMetaUtils.getKeyOfMaxBatch(clientIdentity));
+
+        boolean isZookeeper = "classpath:spring/default-instance.xml".equals(properties.getProperty("canal.instance.global.spring.xml"));
+        boolean isRedis = "classpath:spring/redis-instance.xml".equals(properties.getProperty("canal.instance.global.spring.xml"));
+        if (isRedis) {
+            StringRedisTemplate redisTemplate = initRedisTemplate(properties);
+            if (redisTemplate == null) return false;
+            redisTemplate.delete(RedisMetaUtils.getKeyOfMaxBatch(clientIdentity));
+        } else if (isZookeeper) {
+
+        }
 
         return true;
     }
