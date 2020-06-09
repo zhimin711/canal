@@ -4,3 +4,8 @@ mvn clean install -Dmaven.test.skip -Denv=release
 release link : https://alibaba.github.com/canal/release.html
 
 download link : https://github.com/alibaba/canal/releases
+
+
+git fetch upstream
+
+git merge upstream/master
