@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import com.alibaba.otter.canal.common.alarm.AlarmType;
 import org.apache.commons.lang.StringUtils;
 import org.apache.rocketmq.acl.common.AclClientRPCHook;
 import org.apache.rocketmq.acl.common.SessionCredentials;
@@ -122,6 +123,7 @@ public class CanalRocketMQProducer extends AbstractMQProducer implements CanalMQ
     @Override
     public void send(MQDestination destination, com.alibaba.otter.canal.protocol.Message message, Callback callback) {
         ExecutorTemplate template = new ExecutorTemplate(executor);
+        boolean needAlarm = false;
         try {
             if (!StringUtils.isEmpty(destination.getDynamicTopic())) {
                 // 动态topic
@@ -136,6 +138,7 @@ public class CanalRocketMQProducer extends AbstractMQProducer implements CanalMQ
                         try {
                             send(destination, topicName, messageSub);
                         } catch (Exception e) {
+                            callback.alarm(AlarmType.MQ_PRODUCER, topicName, e);
                             throw new RuntimeException(e);
                         }
                     });
@@ -143,12 +146,14 @@ public class CanalRocketMQProducer extends AbstractMQProducer implements CanalMQ
 
                 template.waitForResult();
             } else {
+                needAlarm = true;
                 send(destination, destination.getTopic(), message);
             }
 
             callback.commit();
         } catch (Throwable e) {
             logger.error(e.getMessage(), e);
+            if (needAlarm) callback.alarm(AlarmType.MQ_PRODUCER, destination.getTopic(), e);
             callback.rollback();
         } finally {
             template.clear();
