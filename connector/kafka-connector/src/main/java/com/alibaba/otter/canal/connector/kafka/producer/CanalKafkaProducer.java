@@ -9,6 +9,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
+import com.alibaba.otter.canal.common.alarm.AlarmType;
 import org.apache.commons.lang.StringUtils;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -125,6 +126,7 @@ public class CanalKafkaProducer extends AbstractMQProducer implements CanalMQPro
     public void send(MQDestination mqDestination, Message message, Callback callback) {
         ExecutorTemplate template = new ExecutorTemplate(executor);
 
+        boolean needAlarm = false;
         try {
             List result;
             if (!StringUtils.isEmpty(mqDestination.getDynamicTopic())) {
@@ -141,6 +143,7 @@ public class CanalKafkaProducer extends AbstractMQProducer implements CanalMQPro
                         try {
                             return send(mqDestination, topicName, messageSub, mqProperties.isFlatMessage());
                         } catch (Exception e) {
+                            callback.alarm(AlarmType.MQ_PRODUCER, topicName, e);
                             throw new RuntimeException(e);
                         }
                     });
@@ -149,6 +152,7 @@ public class CanalKafkaProducer extends AbstractMQProducer implements CanalMQPro
                 result = template.waitForResult();
             } else {
                 result = new ArrayList();
+                needAlarm = true;
                 List<Future> futures = send(mqDestination,
                     mqDestination.getTopic(),
                     message,
@@ -167,6 +171,7 @@ public class CanalKafkaProducer extends AbstractMQProducer implements CanalMQPro
                     try {
                         future.get();
                     } catch (InterruptedException | ExecutionException e) {
+                        if (needAlarm) callback.alarm(AlarmType.MQ_PRODUCER, mqDestination.getTopic(), e);
                         throw new RuntimeException(e);
                     }
                 }

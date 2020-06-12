@@ -193,11 +193,16 @@ public class CanalMQStarter {
                                 public void rollback() {
                                     canalServer.rollback(clientIdentity, batchId);
                                 }
+
+                                @Override
+                                public void alarm(AlarmType alarmType, String message, Throwable throwable) {
+                                    canalInstance.getAlarmHandler().sendAlarm(destination, Alarm.buildJson(alarmType, message, throwable));
+                                }
                             }); // 发送message到topic
                         } else {
                             try {
                                 Thread.sleep(100);
-                            } catch (InterruptedException e) {
+                            } catch (InterruptedException ignore) {
                                 // ignore
                             }
                         }
@@ -205,6 +210,25 @@ public class CanalMQStarter {
                     } catch (CanalMetaManagerException e) {
                         logger.error(e.getMessage(), e);
                         canalInstance.getAlarmHandler().sendAlarm(destination, Alarm.buildJson(AlarmType.META_FIRSTLY, e));
+                    } catch (com.alibaba.otter.canal.server.exception.CanalServerException e) {
+                        logger.error(e.getMessage(), e);
+                        AlarmType alarmType = AlarmType.UNKNOWN;
+                        if (StringUtils.isNotBlank(e.getMessage())) {
+                            if (e.getMessage().startsWith("destination:")) {
+                                alarmType = AlarmType.DESTINATION_SHOULD_START;
+                            } else if (e.getMessage().startsWith("clientId:")) {
+                                alarmType = AlarmType.CLIENT_ID_LASTEST_BATCH;
+                            } else if (e.getMessage().startsWith("ack error")) {
+                                alarmType = AlarmType.ACK_ERROR;
+                            } else if (e.getMessage().startsWith("rollback error")) {
+                                alarmType = AlarmType.ROLLBACK_ERROR;
+                            } else if (e.getMessage().startsWith("ClientIdentity:")) {
+                                alarmType = AlarmType.CLIENT_IDENTITY_SHOULD_SUBSCRIBE;
+                            } else if (e.getMessage().startsWith("can't find destination:")) {
+                                alarmType = AlarmType.DESTINATION_CONFIG_NOT_FOUND;
+                            }
+                        }
+                        canalServer.getCanalInstances().get(destination).getAlarmHandler().sendAlarm(destination, Alarm.buildJson(alarmType, e));
                     } catch (Exception e) {
                         logger.error(e.getMessage(), e);
                         canalInstance.getAlarmHandler().sendAlarm(destination, Alarm.buildJson(AlarmType.UNKNOWN, e));

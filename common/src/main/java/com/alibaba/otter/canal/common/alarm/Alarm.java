@@ -2,6 +2,7 @@ package com.alibaba.otter.canal.common.alarm;
 
 
 import com.alibaba.fastjson.JSONObject;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
 
 /**
@@ -55,6 +56,14 @@ public class Alarm {
 
     public static String buildJson(AlarmType type, Throwable e) {
         String msg = ExceptionUtils.getStackTrace(e);
+        return buildJson(type, msg);
+    }
+
+    public static String buildJson(AlarmType type, String message, Throwable e) {
+        String msg = ExceptionUtils.getStackTrace(e);
+        if (StringUtils.isNotBlank(message)) {
+            msg = "####################\n" + message + "\n####################\n" + msg;
+        }
         return buildJson(type, msg);
     }
 
