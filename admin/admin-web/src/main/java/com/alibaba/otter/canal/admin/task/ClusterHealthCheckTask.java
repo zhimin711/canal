@@ -151,10 +151,6 @@ public class ClusterHealthCheckTask implements InitializingBean {
         pollingAlarmService.save(alarm);
     }
 
-    public void addAlarm(CanalInstanceAlarm alarm) {
-        alarmTasks.add(alarm);
-    }
-
     public void handleAlarm(CanalInstanceAlarm alarm) {
         pollingAlarmService.batchUpdateFinishStatus(alarm);
     }
