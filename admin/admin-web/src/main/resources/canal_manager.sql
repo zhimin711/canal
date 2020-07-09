@@ -64,6 +64,8 @@ CREATE TABLE `canal_instance_config` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `name_UNIQUE` (`name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+alter table canal_instance_config add column `auto_run`        tinyint(1)  NOT NULL DEFAULT '0' after `status`;
+alter table canal_instance_config add column `meta_timeout`       int(10)   DEFAULT NULL after `auto_run`;
 
 -- ----------------------------
 -- Table structure for canal_instance_alarm

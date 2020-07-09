@@ -11,18 +11,18 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.framework.recipes.locks.InterProcessMutex;
 import org.apache.curator.retry.ExponentialBackoffRetry;
-import org.checkerframework.checker.units.qual.C;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
-import java.util.*;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-//@Component
+@Component
 public class ClusterHealthCheckTask implements InitializingBean {
     private static final Logger logger = LoggerFactory.getLogger(ClusterHealthCheckTask.class);
 
@@ -39,17 +39,16 @@ public class ClusterHealthCheckTask implements InitializingBean {
     PollingAlarmService pollingAlarmService;
 
     private ScheduledExecutorService executor;
-    private long period = 60000;                                               // 单位ms
+    private long period = 10000;                                               // 单位ms
     private long period2 = 10000;                                               // 单位ms
+    private int metaTimeout = 5;                                               // 单位分钟
 
     private static final String CANAL_HEALTH_LOCK = "/otter/canal/health/lock";
 
-    private Set<CanalInstanceAlarm> alarmTasks;
 
     @Override
     public void afterPropertiesSet() throws Exception {
         executor = Executors.newScheduledThreadPool(1);
-        alarmTasks = Collections.synchronizedSet(new HashSet<>());
         //1 重试策略：初试时间为1s 重试10次
         RetryPolicy retryPolicy = new ExponentialBackoffRetry(1000, 10);
         // 启动定时工作任务
@@ -71,6 +70,7 @@ public class ClusterHealthCheckTask implements InitializingBean {
                         try {
                             //可重入
                             lock.acquire();
+                            handleAutoRun(r);
                             healthCheck(r);
                         } catch (Exception e) {
                             logger.error("health check and auto restart error: " + r.getName(), e);
@@ -80,6 +80,7 @@ public class ClusterHealthCheckTask implements InitializingBean {
                             } catch (Exception e) {
                                 e.printStackTrace();
                             }
+                            cf.close();
                         }
                     });
                 },
@@ -96,6 +97,30 @@ public class ClusterHealthCheckTask implements InitializingBean {
                 TimeUnit.MILLISECONDS);*/
     }
 
+    /**
+     * 处理需自动的实例
+     *
+     * @param cluster 集群
+     */
+    private void handleAutoRun(CanalCluster cluster) {
+        CanalInstanceConfig params = new CanalInstanceConfig();
+        params.setClusterServerId("cluster:" + cluster.getId());
+//        params.setAutoRun(true);
+        Pager<CanalInstanceConfig> pager = canalInstanceService.findList(params, new Pager<>(1, 1000));
+        if (pager.getCount().equals(0L)) {
+            return;
+        }
+        pager.getItems().forEach(e -> {
+            logger.info("{} instance auto run...", e.getName());
+//            canalInstanceService.instanceOperation(e.getId(), OP.START, false);
+        });
+    }
+
+    /**
+     * 对集群下的实例Meta(游标)健康检查
+     *
+     * @param cluster 集群
+     */
     private void healthCheck(CanalCluster cluster) {
         NodeServer p1 = new NodeServer();
         p1.setClusterId(cluster.getId());
@@ -110,7 +135,7 @@ public class ClusterHealthCheckTask implements InitializingBean {
     }
 
     private void handleInstance(List<CanalInstanceConfig> instanceConfigs) {
-        if (instanceConfigs.isEmpty()) return;
+       /* if (instanceConfigs.isEmpty()) return;
         Date currentDate = DateUtils.current();
         instanceConfigs.forEach(e -> {
             LogPosition position = canalInstanceMetaService.instanceMetaPosition(e.getId());
@@ -119,35 +144,46 @@ public class ClusterHealthCheckTask implements InitializingBean {
                 return;
             }
             Date time = DateUtils.parseTimestamp(position.getPostion().getTimestamp());
-            if (time == null || DateUtils.addMinutes(time, 5).after(currentDate)) return;
+            int offset = e.getMetaTimeout() != null ? e.getMetaTimeout() : metaTimeout;
+            if (time == null || DateUtils.addMinutes(time, offset).after(currentDate)) return;
             CanalInstanceAlarm alarm = pollingAlarmService.findLastAlarmByNameAndType(e.getName(), AlarmType.META_TIMESTAMP);
             if (alarm == null) {
                 logger.info("{} not found pre alarm!", e.getName());
-                savePositionAlarm(e, position);
+                savePositionAlarm(e, position, AlarmType.META_TIMESTAMP);
                 return;
             }
             LogPosition prePosition = JsonUtils.unmarshalFromString(alarm.getMessage(), LogPosition.class);
             if (prePosition == null) {
-                savePositionAlarm(e, position);
+                logger.info("{} found pre alarm message position is null!", e.getName());
+                savePositionAlarm(e, position, AlarmType.META_TIMESTAMP);
                 return;
             }
             Date time2 = DateUtils.parseTimestamp(prePosition.getPostion().getTimestamp());
             if (time2 == null || time.after(time2)) {
-                savePositionAlarm(e, position);
+                logger.info("{} new alarm position update!", e.getName());
+                savePositionAlarm(e, position, AlarmType.META_TIMESTAMP);
                 return;
             }
-            canalInstanceService.instanceOperation(e.getId(), "stop");
-        });
+            canalInstanceService.instanceOperation(e.getId(), OP.STOP, true);
+            savePositionAlarm(e, position, AlarmType.META_TIMESTAMP_STOP);
+        });*/
     }
 
-    private void savePositionAlarm(CanalInstanceConfig instanceConfig, LogPosition position) {
+    /**
+     * 保存检查告警
+     *
+     * @param instanceConfig 实例
+     * @param position       游标
+     * @param alarmType      告警类型
+     */
+    private void savePositionAlarm(CanalInstanceConfig instanceConfig, LogPosition position, AlarmType alarmType) {
         String message = JsonUtils.marshalToString(position, SerializerFeature.WriteClassName);
         CanalInstanceAlarm alarm = new CanalInstanceAlarm();
         alarm.setName(instanceConfig.getName());
-        alarm.setType(AlarmType.META_TIMESTAMP.name());
-        alarm.setStatus("0");
+        alarm.setType(alarmType.name());
         alarm.setMessage(message);
-//        alarm.setCreatedTime();
+//        alarm.setCreatedTime(DateUtils.current());
+        alarm.setStatus("0");
         pollingAlarmService.save(alarm);
     }
 

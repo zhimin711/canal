@@ -3,15 +3,8 @@ package com.alibaba.otter.canal.admin.model;
 import io.ebean.Finder;
 import io.ebean.annotation.WhenModified;
 
+import javax.persistence.*;
 import java.util.Date;
-
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.FetchType;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.ManyToOne;
-import javax.persistence.Transient;
 
 /**
  * Canal实例配置信息实体类
@@ -46,11 +39,14 @@ public class CanalInstanceConfig extends Model {
     private Long         serverId;
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "server_id", updatable = false, insertable = false)
-    private NodeServer   nodeServer;
+    private NodeServer nodeServer;
     private String       name;
     private String       content;
     private String       contentMd5;
     private String       status;             // 1: 正常 0: 停止
+
+    private Boolean      autoRun;
+    private Integer      metaTimeout;
     @WhenModified
     private Date         modifiedTime;
 
@@ -157,5 +153,21 @@ public class CanalInstanceConfig extends Model {
 
     public void setRunningStatus(String runningStatus) {
         this.runningStatus = runningStatus;
+    }
+
+    public Boolean getAutoRun() {
+        return autoRun;
+    }
+
+    public void setAutoRun(Boolean autoRun) {
+        this.autoRun = autoRun;
+    }
+
+    public Integer getMetaTimeout() {
+        return metaTimeout;
+    }
+
+    public void setMetaTimeout(Integer metaTimeout) {
+        this.metaTimeout = metaTimeout;
     }
 }
