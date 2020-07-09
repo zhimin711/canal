@@ -1,5 +1,6 @@
 package com.alibaba.otter.canal.admin.task;
 
+import com.alibaba.fastjson.serializer.SerializerFeature;
 import com.alibaba.otter.canal.admin.model.*;
 import com.alibaba.otter.canal.admin.service.*;
 import com.alibaba.otter.canal.common.alarm.AlarmType;
@@ -10,6 +11,7 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.framework.recipes.locks.InterProcessMutex;
 import org.apache.curator.retry.ExponentialBackoffRetry;
+import org.checkerframework.checker.units.qual.C;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
@@ -139,7 +141,14 @@ public class ClusterHealthCheckTask implements InitializingBean {
     }
 
     private void savePositionAlarm(CanalInstanceConfig instanceConfig, LogPosition position) {
-
+        String message = JsonUtils.marshalToString(position, SerializerFeature.WriteClassName);
+        CanalInstanceAlarm alarm = new CanalInstanceAlarm();
+        alarm.setName(instanceConfig.getName());
+        alarm.setType(AlarmType.META_TIMESTAMP.name());
+        alarm.setStatus("0");
+        alarm.setMessage(message);
+//        alarm.setCreatedTime();
+        pollingAlarmService.save(alarm);
     }
 
     public void addAlarm(CanalInstanceAlarm alarm) {
