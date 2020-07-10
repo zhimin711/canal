@@ -108,6 +108,7 @@ public class ClusterHealthCheckTask implements InitializingBean {
 //        params.setAutoRun(true);
         Pager<CanalInstanceConfig> pager = canalInstanceService.findList(params, new Pager<>(1, 1000));
         if (pager.getCount().equals(0L)) {
+            logger.info("{} not found auto run instances.", cluster.getName());
             return;
         }
         pager.getItems().forEach(e -> {
@@ -126,10 +127,19 @@ public class ClusterHealthCheckTask implements InitializingBean {
         p1.setClusterId(cluster.getId());
         Pager<NodeServer> nodeServerPager = nodeServerService.findList(p1, new Pager<>(1, 10));
         if (nodeServerPager.getCount().equals(0L)) {
+            logger.info("{} not found server nodes!", cluster.getName());
             return;
         }
         nodeServerPager.getItems().forEach(e -> {
+            if ("0".equals(e.getStatus())) {
+                logger.info("IP: {}, status: [{}] not available!", e.getIp(), e.getStatus());
+                return;
+            }
             List<CanalInstanceConfig> insList = canalInstanceService.findActiveInstanceByServerId(e.getId());
+            if (insList == null || insList.isEmpty()) {
+                logger.info("{} [{}] not found active instances !", cluster.getName(), e.getIp());
+                return;
+            }
             handleInstance(insList);
         });
     }
@@ -143,13 +153,15 @@ public class ClusterHealthCheckTask implements InitializingBean {
                 logger.warn("{} not found meta!", e.getName());
                 return;
             }
-            Date time = DateUtils.parseTimestamp(position.getPostion().getTimestamp());
+            Date posTime = DateUtils.parseTimestamp(position.getPostion().getTimestamp());
+            if (posTime == null) {
+                logger.info("{} the meta timestamp is null or parse failed!", e.getName());
+                return;
+            }
             int offset = e.getMetaTimeout() != null ? e.getMetaTimeout() : metaTimeout;
-            if (time == null || DateUtils.addMinutes(time, offset).after(currentDate)) return;
-            CanalInstanceAlarm alarm = pollingAlarmService.findLastAlarmByNameAndType(e.getName(), AlarmType.META_TIMESTAMP);
-            if (alarm == null) {
-                logger.info("{} not found pre alarm!", e.getName());
-                savePositionAlarm(e, position, AlarmType.META_TIMESTAMP);
+            Date offsetTime = DateUtils.addMinutes(posTime, offset);
+            if (offsetTime.after(currentDate)) {
+                logger.info("{} the meta timestamp is new [{}]", e.getName(), DateUtils.format(offsetTime));
                 return;
             }
             LogPosition prePosition = JsonUtils.unmarshalFromString(alarm.getMessage(), LogPosition.class);
@@ -159,12 +171,16 @@ public class ClusterHealthCheckTask implements InitializingBean {
                 return;
             }
             Date time2 = DateUtils.parseTimestamp(prePosition.getPostion().getTimestamp());
-            if (time2 == null || time.after(time2)) {
+            if (time2 == null || posTime.after(time2)) {
                 logger.info("{} new alarm position update!", e.getName());
                 savePositionAlarm(e, position, AlarmType.META_TIMESTAMP);
                 return;
             }
             canalInstanceService.instanceOperation(e.getId(), OP.STOP, true);
+
+            logger.info("{} new alarm position timeout! posTime[{}] offset[{}] offsetTime[{}] currentDate[{}]", e.getName(), DateUtils.format(posTime), offset, DateUtils.format(offsetTime), DateUtils.format(currentDate));
+            //写入停止前的IP到游标的Gtid上
+            position.getPostion().setGtid(nodeServer.getIp());
             savePositionAlarm(e, position, AlarmType.META_TIMESTAMP_STOP);
         });*/
     }
