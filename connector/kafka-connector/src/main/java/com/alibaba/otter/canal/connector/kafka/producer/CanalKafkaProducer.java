@@ -60,6 +60,7 @@ public class CanalKafkaProducer extends AbstractMQProducer implements CanalMQPro
 
         Properties kafkaProperties = new Properties();
         kafkaProperties.putAll(kafkaProducerConfig.getKafkaProperties());
+        kafkaProperties.put("max.in.flight.requests.per.connection", 1);
         kafkaProperties.put("key.serializer", StringSerializer.class);
         if (kafkaProducerConfig.isKerberosEnabled()) {
             File krb5File = new File(kafkaProducerConfig.getKrb5File());
@@ -84,6 +85,19 @@ public class CanalKafkaProducer extends AbstractMQProducer implements CanalMQPro
     private void loadKafkaProperties(Properties properties) {
         KafkaProducerConfig kafkaProducerConfig = (KafkaProducerConfig) this.mqProperties;
         Map<String, Object> kafkaProperties = kafkaProducerConfig.getKafkaProperties();
+        // 兼容下<=1.1.4的mq配置
+        doMoreCompatibleConvert("canal.mq.servers", "kafka.bootstrap.servers", properties);
+        doMoreCompatibleConvert("canal.mq.acks", "kafka.acks", properties);
+        doMoreCompatibleConvert("canal.mq.compressionType", "kafka.compression.type", properties);
+        doMoreCompatibleConvert("canal.mq.retries", "kafka.retries", properties);
+        doMoreCompatibleConvert("canal.mq.batchSize", "kafka.batch.size", properties);
+        doMoreCompatibleConvert("canal.mq.lingerMs", "kafka.linger.ms", properties);
+        doMoreCompatibleConvert("canal.mq.maxRequestSize", "kafka.max.request.size", properties);
+        doMoreCompatibleConvert("canal.mq.bufferMemory", "kafka.buffer.memory", properties);
+        doMoreCompatibleConvert("canal.mq.kafka.kerberos.enable", "kafka.kerberos.enable", properties);
+        doMoreCompatibleConvert("canal.mq.kafka.kerberos.krb5.file", "kafka.kerberos.krb5.file", properties);
+        doMoreCompatibleConvert("canal.mq.kafka.kerberos.jaas.file", "kafka.kerberos.jaas.file", properties);
+
         for (Map.Entry<Object, Object> entry : properties.entrySet()) {
             String key = (String) entry.getKey();
             Object value = entry.getValue();
@@ -92,7 +106,6 @@ public class CanalKafkaProducer extends AbstractMQProducer implements CanalMQPro
                 kafkaProperties.put(key, value);
             }
         }
-
         String kerberosEnabled = properties.getProperty(KafkaConstants.CANAL_MQ_KAFKA_KERBEROS_ENABLE);
         if (!StringUtils.isEmpty(kerberosEnabled)) {
             kafkaProducerConfig.setKerberosEnabled(Boolean.parseBoolean(kerberosEnabled));
@@ -124,7 +137,7 @@ public class CanalKafkaProducer extends AbstractMQProducer implements CanalMQPro
 
     @Override
     public void send(MQDestination mqDestination, Message message, Callback callback) {
-        ExecutorTemplate template = new ExecutorTemplate(executor);
+        ExecutorTemplate template = new ExecutorTemplate(sendExecutor);
 
         boolean needAlarm = false;
         try {
@@ -196,7 +209,7 @@ public class CanalKafkaProducer extends AbstractMQProducer implements CanalMQPro
         if (!flat) {
             if (mqDestination.getPartitionHash() != null && !mqDestination.getPartitionHash().isEmpty()) {
                 // 并发构造
-                EntryRowData[] datas = MQMessageUtils.buildMessageData(message, executor);
+                EntryRowData[] datas = MQMessageUtils.buildMessageData(message, buildExecutor);
                 // 串行分区
                 Message[] messages = MQMessageUtils.messagePartition(datas,
                     message.getId(),
@@ -210,7 +223,8 @@ public class CanalKafkaProducer extends AbstractMQProducer implements CanalMQPro
                         records.add(new ProducerRecord<>(topicName,
                             i,
                             null,
-                            CanalMessageSerializerUtil.serializer(messagePartition, true)));
+                            CanalMessageSerializerUtil.serializer(messagePartition,
+                                mqProperties.isFilterTransactionEntry())));
                     }
                 }
             } else {
@@ -218,12 +232,12 @@ public class CanalKafkaProducer extends AbstractMQProducer implements CanalMQPro
                 records.add(new ProducerRecord<>(topicName,
                     partition,
                     null,
-                    CanalMessageSerializerUtil.serializer(message, true)));
+                    CanalMessageSerializerUtil.serializer(message, mqProperties.isFilterTransactionEntry())));
             }
         } else {
             // 发送扁平数据json
             // 并发构造
-            EntryRowData[] datas = MQMessageUtils.buildMessageData(message, executor);
+            EntryRowData[] datas = MQMessageUtils.buildMessageData(message, buildExecutor);
             // 串行分区
             List<FlatMessage> flatMessages = MQMessageUtils.messageConverter(datas, message.getId());
             for (FlatMessage flatMessage : flatMessages) {
