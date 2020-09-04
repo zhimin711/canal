@@ -104,33 +104,36 @@ public class MQMessageUtils {
                                                                              });
 
     private static Map<String, List<TopicPartitionData>> topicPartitionDatas = MigrateMap.makeComputingMap(CacheBuilder.newBuilder()
-                    .softValues(),
-            tPConfigs -> {
-                List<TopicPartitionData> datas = Lists.newArrayList();
-                String[] tPArray = StringUtils.split(StringUtils.replace(tPConfigs,
-                        ",",
-                        ";"),
-                        ";");
-                for (String tPConfig : tPArray) {
-                    TopicPartitionData data = new TopicPartitionData();
-                    int i = tPConfig.lastIndexOf(":");
-                    if (i > 0) {
-                        String tStr = tPConfig.substring(0, i);
-                        String pStr = tPConfig.substring(i + 1);
-                        if (!isWildCard(tStr)) {
-                            data.simpleName = tStr;
-                        } else {
-                            data.regexFilter = new AviaterRegexFilter(tStr);
-                        }
-                        if (!StringUtils.isEmpty(pStr) && StringUtils.isNumeric(pStr)) {
-                            data.partitionNum = Integer.valueOf(pStr);
-                        }
-                        datas.add(data);
-                    }
-                }
+                                                                                .softValues(),
+                                                                                new Function<String, List<TopicPartitionData>>() {
 
-                return datas;
-            });
+                                                                                    public List<TopicPartitionData> apply(String tPConfigs) {
+                                                                                        List<TopicPartitionData> datas = Lists.newArrayList();
+                                                                                        String[] tPArray = StringUtils.split(StringUtils.replace(tPConfigs,
+                                                                                                ",",
+                                                                                                ";"),
+                                                                                                ";");
+                                                                                        for (String tPConfig : tPArray) {
+                                                                                            TopicPartitionData data = new TopicPartitionData();
+                                                                                            int i = tPConfig.lastIndexOf(":");
+                                                                                            if (i > 0) {
+                                                                                                String tStr = tPConfig.substring(0, i);
+                                                                                                String pStr = tPConfig.substring(i + 1);
+                                                                                                if (!isWildCard(tStr)) {
+                                                                                                    data.simpleName = tStr;
+                                                                                                } else {
+                                                                                                    data.regexFilter = new AviaterRegexFilter(tStr);
+                                                                                                }
+                                                                                                if (!StringUtils.isEmpty(pStr) && StringUtils.isNumeric(pStr)) {
+                                                                                                    data.partitionNum = Integer.valueOf(pStr);
+                                                                                                }
+                                                                                                datas.add(data);
+                                                                                            }
+                                                                                        }
+
+                                                                                        return datas;
+                                                                                    }
+                                                                                });
 
     /**
      * 按 schema 或者 schema+table 将 message 分配到对应topic
@@ -665,7 +668,6 @@ public class MQMessageUtils {
         }
         return null;
     }
-
 
     private static boolean isWildCard(String value) {
         // not contaiins '.' ?

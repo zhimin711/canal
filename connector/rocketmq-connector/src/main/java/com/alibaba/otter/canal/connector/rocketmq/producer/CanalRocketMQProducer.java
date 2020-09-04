@@ -128,7 +128,6 @@ public class CanalRocketMQProducer extends AbstractMQProducer implements CanalMQ
     @Override
     public void send(MQDestination destination, com.alibaba.otter.canal.protocol.Message message, Callback callback) {
         ExecutorTemplate template = new ExecutorTemplate(sendExecutor);
-        boolean needAlarm = false;
         try {
             if (!StringUtils.isEmpty(destination.getDynamicTopic())) {
                 // 动态topic
@@ -205,7 +204,7 @@ public class CanalRocketMQProducer extends AbstractMQProducer implements CanalMQ
             }
         } else {
             // 并发构造
-            MQMessageUtils.EntryRowData[] datas = MQMessageUtils.buildMessageData(message, sendExecutor);
+            MQMessageUtils.EntryRowData[] datas = MQMessageUtils.buildMessageData(message, buildExecutor);
             // 串行分区
             List<FlatMessage> flatMessages = MQMessageUtils.messageConverter(datas, message.getId());
             // 初始化分区合并队列

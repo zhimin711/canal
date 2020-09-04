@@ -172,8 +172,10 @@ public class CanalMQStarter {
                 while (running && destinationRunning.get()) {
                     Message message;
                     if (getTimeout != null && getTimeout > 0) {
-                        message = canalServer
-                            .getWithoutAck(clientIdentity, getBatchSize, getTimeout.longValue(), TimeUnit.MILLISECONDS);
+                        message = canalServer.getWithoutAck(clientIdentity,
+                            getBatchSize,
+                            getTimeout.longValue(),
+                            TimeUnit.MILLISECONDS);
                     } else {
                         message = canalServer.getWithoutAck(clientIdentity, getBatchSize);
                     }

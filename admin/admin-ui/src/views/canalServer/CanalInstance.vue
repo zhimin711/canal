@@ -64,47 +64,17 @@
               <el-dropdown-item @click.native="handleStart(scope.row)">启动</el-dropdown-item>
               <el-dropdown-item @click.native="handleStop(scope.row)">停止</el-dropdown-item>
               <el-dropdown-item @click.native="handleLog(scope.row)">日志</el-dropdown-item>
-              <el-dropdown-item @click.native="handleCursor(scope.row)">Redis游标</el-dropdown-item>
             </el-dropdown-menu>
           </el-dropdown>
         </template>
       </el-table-column>
     </el-table>
     <pagination v-show="count>0" :total="count" :page.sync="listQuery.page" :limit.sync="listQuery.size" @pagination="fetchData()" />
-
-    <el-dialog :visible.sync="dialogFormVisible" title="Reids游标信息" width="50%">
-      <el-form ref="dataForm" :model="metaPosition" label-position="left" label-width="120px" style=" margin-left:30px;">
-        <el-form-item label="游标地址">
-          <el-input v-model="metaPosition.identity.sourceAddress" disabled />
-        </el-form-item>
-        <el-form-item label="游标Binlog">
-          <el-input v-model="metaPosition.postion.journalName" />
-          <span class="form-item-desc">
-            <b class="el-alert el-alert--info">show binary logs;</b>可查询当前实例Binlog
-          </span>
-        </el-form-item>
-        <el-form-item label="当前游标位置">
-          <el-input v-model="metaPosition.postion.position" />
-          <span class="form-item-desc">
-            <b class="el-alert el-alert--info" style="font-size: 12px">show BINLOG EVENTS in '{{ metaPosition.postion.journalName }}' from {{ metaPosition.postion.position }};</b>
-            可查询Binlog可用位置
-          </span>
-        </el-form-item>
-        <el-form-item label="游标时间戳">
-          <!--<el-input v-model="metaPosition.postion.timestamp" disabled />-->
-          <el-date-picker v-model="metaPosition.postion.timestamp" type="datetime" value-format="timestamp" disabled/>
-        </el-form-item>
-      </el-form>
-      <div slot="footer" class="dialog-footer">
-        <el-button @click="dialogFormVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleCursorUpdate()">更新</el-button>
-      </div>
-    </el-dialog>
   </div>
 </template>
 
 <script>
-import { getCanalInstances, deleteCanalInstance, instanceStatus, getRedisPosition, updateRedisPosition } from '@/api/canalInstance'
+import { getCanalInstances, deleteCanalInstance, instanceStatus } from '@/api/canalInstance'
 import Pagination from '@/components/Pagination'
 import { getClustersAndServers } from '@/api/canalCluster'
 
@@ -140,7 +110,6 @@ export default {
         page: 1,
         size: 20
       },
-      metaPosition: { identity: {}, postion: {}},
       currentId: null,
       rules: {
         id: [{ required: true, message: '请选择运行Server', trigger: 'change' }]
@@ -248,52 +217,11 @@ export default {
       })
     },
     handleLog(row) {
-      if (row.nodeServer === null) {
+      if (row.nodeId === null) {
         this.$message({ message: '当前Instance不是启动状态，无法查看日志', type: 'warning' })
         return
       }
       this.$router.push('canalInstance/log?id=' + row.id + '&nodeId=' + row.nodeServer.id)
-    },
-    handleCursor(row) {
-      this.listLoading = true
-      getRedisPosition(row.id).then(res => {
-        if (res.data) {
-          this.metaPosition = res.data
-          this.metaPosition.instanceId = row.id
-          this.metaPosition.isStop = row.nodeServer === null
-          this.dialogFormVisible = true
-        } else {
-          this.$message({ message: '当前Instance未使用Redis游标或未开始同步数据', type: 'warning' })
-        }
-      }).finally(() => {
-        this.listLoading = false
-      })
-    },
-    handleCursorUpdate() {
-      if (!this.metaPosition.isStop) {
-        this.$message({ message: '当前Instance不是停止状态，无法修改游标', type: 'warning' })
-        return
-      }
-      this.$confirm('确定游标吗？（注：只能更新停止的实例游标）', {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }).then(() => {
-        updateRedisPosition(this.metaPosition).then((res) => {
-          if (res.data) {
-            this.dialogFormVisible = false
-            this.$message({
-              message: '更新成功，启动实例将以新的游标开始同步数据',
-              type: 'success'
-            })
-          } else {
-            this.$message({
-              message: '更新失败！',
-              type: 'error'
-            })
-          }
-        })
-      })
     }
   }
 }
